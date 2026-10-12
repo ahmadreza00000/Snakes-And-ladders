@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#05070f">
+<title>مار و پله</title>
+<style>
+  :root{
+    --p1:#38bdf8;
+    --p2:#fb923c;
+    --gold:#fbbf24;
+    --rose:#fb7185;
+    --pad:6px;
+    --gap:2px;
+  }
+
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+
+  html,body{
+    margin:0; padding:0;
+    min-height:100%;
+    overscroll-behavior:none;
+  }
+
+  body{
+    font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+    background:
+      radial-gradient(120% 80% at 50% -10%, #16264a 0%, #0b1020 42%, #04060c 100%);
+    color:#e6edf8;
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    padding:
+      max(10px, env(safe-area-inset-top))
+      10px
+      max(10px, env(safe-area-inset-bottom));
+  }
+
+  .app{
+    width:100%;
+    max-width:440px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  /* ═══ Header ═══ */
+  .header{ text-align:center; }
+  .header h1{
+    margin:0;
+    font-size:clamp(1rem, 4.5vw, 1.3rem);
+    font-weight:800;
+    letter-spacing:.4px;
+    background:linear-gradient(90deg, #fbbf24, #f472b6 50%, #60a5fa);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    filter:drop-shadow(0 2px 8px rgba(244,114,182,.25));
+  }
+  .header .sub{
+    margin-top:2px;
+    font-size:.7rem;
+    color:#64789c;
+  }
+
+  /* ═══ Board ═══ */
+  .board-wrap{
+    width:100%;
+    aspect-ratio:1/1;
+    position:relative;
+  }
+
+  .board{
+    position:absolute; inset:0;
+    display:grid;
+    grid-template-columns:repeat(10, 1fr);
+    grid-template-rows:repeat(10, 1fr);
+    gap:var(--gap);
+    padding:var(--pad);
+    background:linear-gradient(160deg, #182138, #0a1220);
+    border-radius:18px;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,.07),
+      0 0 0 4px rgba(255,255,255,.02),
+      0 20px 50px -10px rgba(0,0,0,.85),
+      inset 0 0 60px rgba(59,130,246,.06);
+    direction:ltr;
+    overflow:hidden;
+    animation:boardIn .6s cubic-bezier(.22,1,.36,1);
+  }
+  @keyframes boardIn{
+    from{opacity:0; transform:scale(.94);}
+    to  {opacity:1; transform:scale(1);}
+  }
+
+  .cell{
+    position:relative;
+    border-radius:5px;
+    background:linear-gradient(150deg, #1b2436, #0f1729);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:clamp(7px, 2vw, 11px);
+    font-weight:800;
+    color:#7b90b5;
+    font-variant-numeric:tabular-nums;
+    overflow:hidden;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.025);
+  }
+  .cell.alt{
+    background:linear-gradient(150deg, #202b42, #131f33);
+    color:#8ba0c1;
+  }
+  .cell .num{
+    position:relative;
+    z-index:1;
+    text-shadow:0 0 5px rgba(10,16,30,.95), 0 0 9px rgba(10,16,30,.9);
+  }
+  .cell.ladder-start .num{ color:#fcd34d; }
+  .cell.snake-head .num{ color:#fb7185; }
+  .cell.goal{
+    background:linear-gradient(150deg, #4a3410, #241505);
+    box-shadow:
+      inset 0 0 0 1px rgba(251,191,36,.45),
+      0 0 14px rgba(251,191,36,.35);
+  }
+  .cell.goal .num{ color:#fde68a; }
+
+  .board-svg{
+    position:absolute;
+    top:var(--pad);
+    left:var(--pad);
+    width:calc(100% - 2 * var(--pad));
+    height:calc(100% - 2 * var(--pad));
+    pointer-events:none;
+    z-index:2;
+    overflow:visible;
+  }
+
+  /* ═══ Tokens ═══ */
+  .token{
+    position:absolute;
+    border-radius:50%;
+    transform:translate(-50%,-50%);
+    transition:left .11s linear, top .11s linear, width .25s, height .25s;
+    z-index:5;
+    pointer-events:none;
+    border:2px solid rgba(255,255,255,.92);
+    box-shadow:
+      0 3px 10px rgba(0,0,0,.75),
+      0 0 0 3px rgba(255,255,255,.07);
+    will-change:left, top;
+  }
+  #playerToken{
+    background:radial-gradient(circle at 32% 28%, #cff3ff, var(--p1) 45%, #0369a1);
+  }
+  #cpuToken{
+    background:radial-gradient(circle at 32% 28%, #ffe4c4, var(--p2) 45%, #c2410c);
+  }
+  .token.winner{
+    animation:winnerPulse 1s ease-in-out infinite;
+  }
+  @keyframes winnerPulse{
+    0%,100%{ box-shadow:0 0 0 3px var(--gold), 0 0 22px var(--gold), 0 4px 12px rgba(0,0,0,.6); }
+    50%    { box-shadow:0 0 0 6px var(--gold), 0 0 42px var(--gold), 0 4px 12px rgba(0,0,0,.6); }
+  }
+
+  /* ═══ Status row ═══ */
+  .status-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .pcard{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:linear-gradient(160deg, #131e34, #0b1424);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:12px;
+    padding:8px 11px;
+    transition:.25s;
+    min-width:0;
+  }
+  .pcard.active{
+    border-color:rgba(96,165,250,.5);
+    animation:cardPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes cardPulse{
+    0%,100%{ box-shadow:0 0 0 1px rgba(96,165,250,.18) inset, 0 0 14px rgba(96,165,250,.12); }
+    50%    { box-shadow:0 0 0 1px rgba(96,165,250,.45) inset, 0 0 24px rgba(96,165,250,.3); }
+  }
+  .pcard .dot{
+    width:12px; height:12px; border-radius:50%; flex:0 0 auto;
+  }
+  .dot-p{ background:radial-gradient(circle at 30% 30%, #bae6fd, var(--p1)); box-shadow:0 0 8px var(--p1); }
+  .dot-c{ background:radial-gradient(circle at 30% 30%, #fed7aa, var(--p2)); box-shadow:0 0 8px var(--p2); }
+  .pname{
+    font-size:.76rem; color:#a8b8d4; font-weight:700;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .pos{
+    margin-inline-start:auto;
+    font-size:.95rem; font-weight:900; color:#fff;
+    font-variant-numeric:tabular-nums;
+    min-width:1.8em; text-align:center;
+  }
+
+  /* ═══ Controls ═══ */
+  .controls{
+    display:grid;
+    grid-template-columns:auto 1fr auto;
+    gap:8px;
+    align-items:center;
+  }
+  .die{
+    width:54px; height:54px;
+    border-radius:13px;
+    background:linear-gradient(150deg, #ffffff, #d5ddeb);
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(3,1fr);
+    padding:8px; gap:3px;
+    box-shadow:
+      0 6px 16px rgba(0,0,0,.55),
+      inset 0 -3px 0 rgba(0,0,0,.12);
+    flex:0 0 auto;
+  }
+  .die i{
+    border-radius:50%;
+    background:#16223d;
+    opacity:0; transform:scale(.3);
+    transition:.12s;
+  }
+  .die i.on{ opacity:1; transform:scale(1); }
+  .die.rolling{ animation:shake .28s infinite; }
+  @keyframes shake{
+    0%,100%{ transform:rotate(-7deg) translateY(0); }
+    50%    { transform:rotate(7deg) translateY(-4px); }
+  }
+
+  button{
+    font-family:inherit;
+    font-size:1rem;
+    font-weight:800;
+    padding:0 20px;
+    height:54px;
+    border-radius:13px;
+    border:none;
+    cursor:pointer;
+    background:linear-gradient(180deg, #3b82f6, #1d4ed8);
+    color:#fff;
+    box-shadow:
+      0 4px 0 #12317a,
+      0 8px 20px rgba(59,130,246,.35);
+    transition:.12s;
+    touch-action:manipulation;
+  }
+  button:active:not(:disabled){
+    transform:translateY(3px);
+    box-shadow:0 1px 0 #12317a, 0 4px 12px rgba(59,130,246,.3);
+  }
+  button:disabled{
+    opacity:.35;
+    cursor:not-allowed;
+    box-shadow:0 4px 0 #1b2338;
+  }
+  button.ghost{
+    width:54px; padding:0;
+    background:rgba(255,255,255,.05);
+    color:#9fb3d9;
+    border:1px solid rgba(255,255,255,.1);
+    box-shadow:none;
+    font-size:1.25rem;
+    line-height:1;
+  }
+  button.ghost:active{
+    transform:scale(.94);
+    background:rgba(255,255,255,.1);
+  }
+
+  /* ═══ Log ═══ */
+  .log{
+    background:linear-gradient(160deg, #0f1830, #0a1120);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:12px;
+    padding:8px 12px;
+    height:86px;
+    overflow-y:auto;
+    font-size:.74rem;
+    line-height:1.75;
+    color:#96a9c9;
+    scrollbar-width:thin;
+    scrollbar-color:#2a3b5c transparent;
+  }
+  .log::-webkit-scrollbar{ width:4px; }
+  .log::-webkit-scrollbar-thumb{ background:#2a3b5c; border-radius:4px; }
+  .log > div{
+    padding:1px 0;
+    border-bottom:1px dashed rgba(255,255,255,.04);
+  }
+  .log > div:last-child{ border-bottom:none; }
+  .log .hl{ color:#fcd34d; font-weight:800; }
+  .log .good{ color:#6ee7b7; font-weight:800; }
+  .log .bad{ color:#fda4af; font-weight:800; }
+
+  /* ═══ Rules modal ═══ */
+  .modal-overlay{
+    position:fixed; inset:0;
+    background:rgba(3, 6, 15, .82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+    z-index:100;
+    animation:overlayIn .3s ease;
+  }
+  @keyframes overlayIn{ from{opacity:0;} to{opacity:1;} }
+
+  .modal{
+    width:100%;
+    max-width:400px;
+    max-height:90vh;
+    overflow-y:auto;
+    background:linear-gradient(160deg, #1a2440, #0c1424);
+    border:1px solid rgba(255,255,255,.1);
+    border-radius:20px;
+    padding:22px 20px;
+    box-shadow:
+      0 30px 80px rgba(0,0,0,.8),
+      0 0 60px rgba(59,130,246,.12),
+      inset 0 1px 0 rgba(255,255,255,.08);
+    animation:modalIn .45s cubic-bezier(.22,1.2,.36,1);
+  }
+  @keyframes modalIn{
+    from{ opacity:0; transform:translateY(30px) scale(.94); }
+    to  { opacity:1; transform:translateY(0)    scale(1); }
+  }
+
+  .modal h2{
+    margin:0 0 4px;
+    font-size:1.15rem;
+    text-align:center;
+    background:linear-gradient(90deg, #fbbf24, #f472b6 50%, #60a5fa);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .modal .modal-sub{
+    text-align:center;
+    font-size:.75rem;
+    color:#7c8fb5;
+    margin-bottom:14px;
+  }
+
+  .rules-list{
+    list-style:none;
+    margin:0 0 18px;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .rules-list li{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.05);
+    border-radius:11px;
+    padding:9px 11px;
+    font-size:.83rem;
+    line-height:1.6;
+    color:#c6d2e8;
+  }
+  .rules-list li .ico{
+    font-size:1.05rem;
+    flex:0 0 auto;
+    line-height:1.4;
+  }
+  .rules-list li b{ color:#fcd34d; }
+
+  .modal button{
+    width:100%;
+    height:52px;
+    font-size:1rem;
+    background:linear-gradient(180deg, #22c55e, #16a34a);
+    box-shadow:
+      0 4px 0 #0e5c30,
+      0 8px 22px rgba(34,197,94,.35);
+  }
+  .modal button:active:not(:disabled){
+    box-shadow:0 1px 0 #0e5c30, 0 4px 12px rgba(34,197,94,.3);
+  }
+
+  .hidden{ display:none !important; }
+
+  /* ═══ Responsive ═══ */
+  @media (max-height:720px){
+    .log{ height:62px; font-size:.7rem; }
+    .header .sub{ display:none; }
+  }
+  @media (max-height:620px){
+    .log{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="header">
+    <h1>🐍 مار و پله 🪜</h1>
+    <div class="sub">شما در برابر کامپیوتر — برای برد باید دقیقاً روی خانه ۱۰۰ بایستید</div>
+  </header>
+
+  <div class="board-wrap">
+    <div class="board" id="board">
+      <svg class="board-svg" id="boardSvg" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+      <div class="token" id="playerToken"></div>
+      <div class="token" id="cpuToken"></div>
+    </div>
+  </div>
+
+  <div class="status-row">
+    <div class="pcard active" id="pCard">
+      <span class="dot dot-p"></span>
+      <span class="pname">شما</span>
+      <span class="pos" id="pPos">۰</span>
+    </div>
+    <div class="pcard" id="cCard">
+      <span class="dot dot-c"></span>
+      <span class="pname">کامپیوتر</span>
+      <span class="pos" id="cPos">۰</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="die" id="die">
+      <i></i><i></i><i></i>
+      <i></i><i></i><i></i>
+      <i></i><i></i><i></i>
+    </div>
+    <button id="rollBtn">تاس بریز</button>
+    <button id="resetBtn" class="ghost" aria-label="شروع دوباره">↻</button>
+  </div>
+
+  <div class="log" id="log"></div>
+</div>
+
+<!-- ═══════════ Modal قوانین ═══════════ -->
+<div class="modal-overlay" id="rulesModal">
+  <div class="modal">
+    <h2>📜 قوانین بازی</h2>
+    <div class="modal-sub">لطفاً قبل از شروع، قوانین را بخوانید</div>
+
+    <ul class="rules-list">
+      <li>
+        <span class="ico">🎯</span>
+        <span>هدف بازی، رسیدن <b>دقیقاً به خانه ۱۰۰</b> است — نه عبور از آن.</span>
+      </li>
+      <li>
+        <span class="ico">🎲</span>
+        <span>هر بازیکن در هر نوبت <b>یک بار</b> تاس می‌اندازد.</span>
+      </li>
+      <li>
+        <span class="ico">✨</span>
+        <span>اگر <b>۶</b> بیاورید، یک نوبت دیگر هم تاس می‌اندازید.</span>
+      </li>
+      <li>
+        <span class="ico">⛔</span>
+        <span>اگر <b>سه بار پشت سر هم ۶</b> بیاورید، نوبت‌تان می‌سوزد.</span>
+      </li>
+      <li>
+        <span class="ico">🪜</span>
+        <span>اگر مهره روی پایهٔ پله بیفتد، <b>بالا</b> می‌رود.</span>
+      </li>
+      <li>
+        <span class="ico">🐍</span>
+        <span>اگر مهره روی سر مار بیفتد، <b>پایین</b> می‌آید.</span>
+      </li>
+      <li>
+        <span class="ico">🔁</span>
+        <span>اگر عددی بیاورید که شما را <b>از ۱۰۰ عبور</b> دهد، مهره‌تان تکان نمی‌خورد و <b>دوباره تاس می‌اندازید</b> تا عدد دقیق برای رسیدن به ۱۰۰ بیاورید.</span>
+      </li>
+    </ul>
+
+    <button id="startBtn">شروع بازی</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════ داده‌های بازی ═══════════════ */
+const LADDERS = { 1:38, 4:14, 9:31, 21:42, 28:84, 36:44, 51:67, 71:91, 80:100 };
+const SNAKES  = { 16:6, 47:26, 49:11, 56:53, 62:19, 64:60, 87:24, 93:73, 95:75, 98:78 };
+const SVG_NS  = 'http://www.w3.org/2000/svg';
+
+/* ═══════════════ عناصر ═══════════════ */
+const boardEl  = document.getElementById('board');
+const svgEl    = document.getElementById('boardSvg');
+const logEl    = document.getElementById('log');
+const dieEl    = document.getElementById('die');
+const rollBtn  = document.getElementById('rollBtn');
+const resetBtn = document.getElementById('resetBtn');
+const pCard    = document.getElementById('pCard');
+const cCard    = document.getElementById('cCard');
+const pPosEl   = document.getElementById('pPos');
+const cPosEl   = document.getElementById('cPos');
+const rulesModal = document.getElementById('rulesModal');
+const startBtn   = document.getElementById('startBtn');
+
+/* ═══════════════ ساخت خانه‌ها ═══════════════ */
+const cells = new Array(101);
+
+for (let row = 9; row >= 0; row--) {
+  for (let i = 0; i < 10; i++) {
+    const num = (row % 2 === 0)
+      ? row * 10 + i + 1
+      : row * 10 + (9 - i) + 1;
+
+    const el = document.createElement('div');
+    el.className = 'cell' + ((row + i) % 2 ? ' alt' : '');
+    if (LADDERS[num]) el.classList.add('ladder-start');
+    if (SNAKES[num])  el.classList.add('snake-head');
+    if (num === 100)  el.classList.add('goal');
+
+    el.innerHTML = `<span class="num">${num}</span>`;
+    boardEl.insertBefore(el, svgEl);
+    cells[num] = el;
+  }
+}
+
+/* ═══════════════ مرکز خانه در viewBox 100×100 ═══════════════ */
+function center(n) {
+  const row = Math.floor((n - 1) / 10);
+  const idx = (n - 1) % 10;
+  const i   = (row % 2 === 0) ? idx : 9 - idx;
+  return { x: (i + 0.5) * 10, y: (9 - row + 0.5) * 10 };
+}
+
+/* ═══════════════ ساخت SVG (نردبان‌ها + مارها) ═══════════════ */
+(function buildSVG() {
+  const defs = document.createElementNS(SVG_NS, 'defs');
+  defs.innerHTML = `
+    <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#fef3c7"/>
+      <stop offset="45%"  stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="sg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#fda4af"/>
+      <stop offset="45%"  stop-color="#f43f5e"/>
+      <stop offset="100%" stop-color="#9f1239"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="0.55" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  `;
+  svgEl.appendChild(defs);
+
+  const mkLine = (x1,y1,x2,y2,stroke,width,opacity) => {
+    const l = document.createElementNS(SVG_NS, 'line');
+    l.setAttribute('x1',x1); l.setAttribute('y1',y1);
+    l.setAttribute('x2',x2); l.setAttribute('y2',y2);
+    l.setAttribute('stroke',stroke);
+    l.setAttribute('stroke-width',width);
+    l.setAttribute('stroke-linecap','round');
+    if (opacity !== undefined) l.setAttribute('opacity', opacity);
+    return l;
+  };
+
+  /* نردبان‌ها */
+  const lg = document.createElementNS(SVG_NS, 'g');
+  lg.setAttribute('filter', 'url(#glow)');
+
+  for (const [f, t] of Object.entries(LADDERS)) {
+    const A = center(+f), B = center(+t);
+    const dx = B.x - A.x, dy = B.y - A.y;
+    const len = Math.hypot(dx, dy);
+    const ux = dx/len, uy = dy/len;
+    const px = -uy, py = ux;
+    const w = 1.3, trim = 2.5;
+    const ax = A.x + ux*trim, ay = A.y + uy*trim;
+    const bx = B.x - ux*trim, by = B.y - uy*trim;
+
+    for (const s of [1, -1]) {
+      const X1 = ax + px*w*s, Y1 = ay + py*w*s;
+      const X2 = bx + px*w*s, Y2 = by + py*w*s;
+      lg.appendChild(mkLine(X1,Y1,X2,Y2,'#5b3a0a',1.6,0.55));
+      lg.appendChild(mkLine(X1,Y1,X2,Y2,'url(#lg)',0.9));
+    }
+
+    const segLen = Math.hypot(bx-ax, by-ay);
+    const count  = Math.max(2, Math.round(segLen / 5));
+    for (let i = 1; i < count; i++) {
+      const t  = i / count;
+      const cx = ax + (bx-ax)*t;
+      const cy = ay + (by-ay)*t;
+      const X1 = cx + px*w, Y1 = cy + py*w;
+      const X2 = cx - px*w, Y2 = cy - py*w;
+      lg.appendChild(mkLine(X1,Y1,X2,Y2,'#5b3a0a',1.4,0.55));
+      lg.appendChild(mkLine(X1,Y1,X2,Y2,'url(#lg)',0.7));
+    }
+  }
+  svgEl.appendChild(lg);
+
+  /* مارها */
+  const sg = document.createElementNS(SVG_NS, 'g');
+  sg.setAttribute('filter', 'url(#glow)');
+
+  for (const [f, t] of Object.entries(SNAKES)) {
+    const A = center(+f), B = center(+t);
+    const dx = B.x - A.x, dy = B.y - A.y;
+    const len = Math.hypot(dx, dy);
+    const ux = dx/len, uy = dy/len;
+    const px = -uy, py = ux;
+
+    const amp = Math.min(2.6, len * 0.13);
+    const N = 36;
+    const pts = [];
+    for (let i = 0; i <= N; i++) {
+      const tt  = i / N;
+      const env = Math.sin(tt * Math.PI);
+      const off = Math.sin(tt * Math.PI * 3) * amp * (0.35 + 0.65*env);
+      pts.push([
+        A.x + dx*tt + px*off,
+        A.y + dy*tt + py*off
+      ]);
+    }
+
+    let d = `M ${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const p0 = pts[i-1], p1 = pts[i], p2 = pts[i+1];
+      const p3 = pts[Math.min(i+2, pts.length-1)];
+      const c1x = p1[0] + (p2[0]-p0[0])/6;
+      const c1y = p1[1] + (p2[1]-p0[1])/6;
+      const c2x = p2[0] - (p3[0]-p1[0])/6;
+      const c2y = p2[1] - (p3[1]-p1[1])/6;
+      d += ` C ${c1x.toFixed(2)} ${c1y.toFixed(2)}, ${c2x.toFixed(2)} ${c2y.toFixed(2)}, ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`;
+    }
+
+    const mkPath = (stroke, width, dash, opacity) => {
+      const p = document.createElementNS(SVG_NS, 'path');
+      p.setAttribute('d', d);
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', stroke);
+      p.setAttribute('stroke-width', width);
+      p.setAttribute('stroke-linecap', 'round');
+      p.setAttribute('stroke-linejoin', 'round');
+      if (dash) p.setAttribute('stroke-dasharray', dash);
+      if (opacity !== undefined) p.setAttribute('opacity', opacity);
+      return p;
+    };
+
+    sg.appendChild(mkPath('#4c0519', 2.2, null, 0.85));
+    sg.appendChild(mkPath('url(#sg)', 1.4));
+    sg.appendChild(mkPath('#fecdd3', 1.0, '0.5 1.8', 0.7));
+
+    const head = document.createElementNS(SVG_NS, 'circle');
+    head.setAttribute('cx', A.x);
+    head.setAttribute('cy', A.y);
+    head.setAttribute('r', '1.75');
+    head.setAttribute('fill', 'url(#sg)');
+    head.setAttribute('stroke', '#4c0519');
+    head.setAttribute('stroke-width', '0.4');
+    sg.appendChild(head);
+
+    for (const s of [1, -1]) {
+      const ex = A.x + px*s*0.62 - ux*0.15;
+      const ey = A.y + py*s*0.62 - uy*0.15;
+
+      const eye = document.createElementNS(SVG_NS, 'circle');
+      eye.setAttribute('cx', ex);
+      eye.setAttribute('cy', ey);
+      eye.setAttribute('r', '0.46');
+      eye.setAttribute('fill', '#fff');
+      sg.appendChild(eye);
+
+      const pupil = document.createElementNS(SVG_NS, 'circle');
+      pupil.setAttribute('cx', ex - ux*0.12);
+      pupil.setAttribute('cy', ey - uy*0.12);
+      pupil.setAttribute('r', '0.22');
+      pupil.setAttribute('fill', '#1a0510');
+      sg.appendChild(pupil);
+    }
+  }
+  svgEl.appendChild(sg);
+})();
+
+/* ═══════════════ مهره‌ها ═══════════════ */
+const player = { pos:0, el:document.getElementById('playerToken'), side:'p' };
+const cpu    = { pos:0, el:document.getElementById('cpuToken'),    side:'c' };
+
+function placeToken(tok) {
+  const n = Math.max(1, Math.min(100, tok.pos));
+  const cell = cells[n];
+  const br = boardEl.getBoundingClientRect();
+  const cr = cell.getBoundingClientRect();
+
+  const size = Math.max(10, cr.width * 0.46);
+  tok.el.style.width  = size + 'px';
+  tok.el.style.height = size + 'px';
+
+  const cx = cr.left - br.left + cr.width  * (tok.side === 'p' ? 0.31 : 0.69);
+  const cy = cr.top  - br.top  + cr.height * 0.52;
+
+  tok.el.style.left = cx + 'px';
+  tok.el.style.top  = cy + 'px';
+}
+
+/* ═══════════════ تاس ═══════════════ */
+const PIP_MAP = {
+  1:[4],
+  2:[0,8],
+  3:[0,4,8],
+  4:[0,2,6,8],
+  5:[0,2,4,6,8],
+  6:[0,2,3,5,6,8]
+};
+const pips = dieEl.querySelectorAll('i');
+
+function drawDie(v) {
+  const on = PIP_MAP[v] || [];
+  pips.forEach((p, i) => p.classList.toggle('on', on.includes(i)));
+}
+
+/* ═══════════════ وضعیت بازی ═══════════════ */
+let gen = 0;
+let gameOver = false;
+let turn = 'p';
+let pendingRoll = null;
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const nameOf = w => (w === 'p' ? 'شما' : 'کامپیوتر');
+
+function addLog(text, cls = '') {
+  const d = document.createElement('div');
+  d.className = cls;
+  d.innerHTML = text;
+  logEl.prepend(d);
+  while (logEl.children.length > 40) logEl.lastChild.remove();
+}
+
+function updateUI() {
+  pPosEl.textContent = player.pos;
+  cPosEl.textContent = cpu.pos;
+  pCard.classList.toggle('active', turn === 'p' && !gameOver);
+  cCard.classList.toggle('active', turn === 'c' && !gameOver);
+}
+
+/* ═══════════════ انیمیشن‌ها ═══════════════ */
+async function rollDiceAnim() {
+  dieEl.classList.add('rolling');
+  for (let i = 0; i < 9; i++) {
+    drawDie(1 + Math.floor(Math.random() * 6));
+    await sleep(55);
+  }
+  const v = 1 + Math.floor(Math.random() * 6);
+  drawDie(v);
+  dieEl.classList.remove('rolling');
+  await sleep(180);
+  return v;
+}
+
+async function moveSteps(tok, target, myGen) {
+  const dir = target > tok.pos ? 1 : -1;
+  while (tok.pos !== target) {
+    tok.pos += dir;
+    tok.el.style.transitionDuration = '.11s';
+    placeToken(tok);
+    updateUI();
+    await sleep(115);
+    if (myGen !== gen) return;
+  }
+}
+
+async function jump(tok, dest, myGen) {
+  tok.el.style.transitionDuration = '.5s';
+  tok.pos = dest;
+  placeToken(tok);
+  updateUI();
+  await sleep(600);
+  if (myGen !== gen) return;
+  tok.el.style.transitionDuration = '.11s';
+}
+
+/* ═══════════════ یک بار تاس ═══════════════
+   خروجی: { v, overshoot, finished }
+   - overshoot: عدد از مرز ۱۰۰ گذشت (مهره تکان نمی‌خورد، دوباره تاس)
+   - finished : بازی در همین رول تمام شد
+*/
+async function doTurn(who, myGen) {
+  const tok = who === 'p' ? player : cpu;
+
+  const v = await rollDiceAnim();
+  if (myGen !== gen) return { v, overshoot: false, finished: true };
+
+  const label = `<span class="${who === 'p' ? 'good' : 'bad'}">${nameOf(who)}</span>`;
+  addLog(`${label} تاس ریخت: <b>${v}</b>`);
+
+  const newPos = tok.pos + v;
+
+  /* ── عبور از ۱۰۰: مهره تکان نمی‌خورد ── */
+  if (newPos > 100) {
+    const need = 100 - tok.pos;
+    addLog(`🚫 عدد بیشتر از نیاز بود (${need} لازم داشت). دوباره تاس می‌اندازد...`, 'hl');
+    return { v, overshoot: true, finished: false };
+  }
+
+  /* ── حرکت معمولی ── */
+  await moveSteps(tok, newPos, myGen);
+  if (myGen !== gen) return { v, overshoot: false, finished: true };
+  await sleep(150);
+  if (myGen !== gen) return { v, overshoot: false, finished: true };
+
+  /* ── مار و پله (فقط اگر به ۱۰۰ نرسیده باشیم) ── */
+  if (tok.pos < 100) {
+    if (LADDERS[tok.pos]) {
+      const to = LADDERS[tok.pos];
+      addLog(`🪜 ${nameOf(who)} از پله ${tok.pos} بالا رفت به <b>${to}</b>!`, 'good');
+      await jump(tok, to, myGen);
+    } else if (SNAKES[tok.pos]) {
+      const to = SNAKES[tok.pos];
+      addLog(`🐍 مار ${nameOf(who)} را از ${tok.pos} به <b>${to}</b> کشید پایین!`, 'bad');
+      await jump(tok, to, myGen);
+    }
+  }
+
+  if (myGen !== gen) return { v, overshoot: false, finished: true };
+
+  /* ── بررسی برد ── */
+  if (tok.pos === 100) {
+    gameOver = true;
+    tok.el.classList.add('winner');
+    addLog(
+      who === 'p'
+        ? '🎉🎉 تبریک! <span class="hl">شما برنده شدید!</span>'
+        : '😢 <span class="hl">کامپیوتر برنده شد!</span>',
+      'hl'
+    );
+    rollBtn.disabled = true;
+    updateUI();
+    return { v, overshoot: false, finished: true };
+  }
+
+  return { v, overshoot: false, finished: false };
+}
+
+/* ═══════════════ حلقه اصلی ═══════════════ */
+function waitRoll() {
+  return new Promise(res => { pendingRoll = res; });
+}
+
+rollBtn.addEventListener('click', () => {
+  if (pendingRoll) {
+    const r = pendingRoll;
+    pendingRoll = null;
+    r();
+  }
+});
+
+async function gameLoop(myGen) {
+  while (myGen === gen && !gameOver) {
+    updateUI();
+
+    /* ── نوبت یک بازیکن — ممکن است چند تاس داشته باشد ── */
+    let keepRolling = true;
+    let sixStreak = 0;
+
+    while (keepRolling && !gameOver && myGen === gen) {
+      if (turn === 'p') {
+        rollBtn.disabled = false;
+        await waitRoll();
+        if (myGen !== gen) return;
+        rollBtn.disabled = true;
+      } else {
+        await sleep(700);
+        if (myGen !== gen) return;
+      }
+
+      const { v, overshoot, finished } = await doTurn(turn, myGen);
+      if (myGen !== gen || finished || gameOver) {
+        keepRolling = false;
+        break;
+      }
+
+      if (v === 6) {
+        sixStreak++;
+        if (sixStreak >= 3) {
+          addLog(`⛔ سه شش پیاپی! نوبت ${nameOf(turn)} سوخت.`, 'bad');
+          keepRolling = false;
+        } else if (overshoot) {
+          addLog(`✨ با ۶ از مرز گذشت — یک نوبت دیگر!`, 'good');
+          keepRolling = true;
+        } else {
+          addLog(`✨ شش! ${nameOf(turn)} یک نوبت دیگر می‌اندازد.`, 'good');
+          keepRolling = true;
+        }
+      } else {
+        sixStreak = 0;
+        if (overshoot) {
+          addLog(`🔁 ${nameOf(turn)} دوباره تاس می‌اندازد تا عدد دقیق بیاورد.`, 'hl');
+          keepRolling = true;
+        } else {
+          keepRolling = false;
+        }
+      }
+    }
+
+    /* ── تعویض نوبت ── */
+    if (!gameOver) {
+      turn = (turn === 'p') ? 'c' : 'p';
+    }
+  }
+}
+
+/* ═══════════════ شروع / ریست ═══════════════ */
+function startGame() {
+  gen++;
+  const myGen = gen;
+
+  gameOver = false;
+  turn = 'p';
+
+  if (pendingRoll) {
+    const r = pendingRoll;
+    pendingRoll = null;
+    r();
+  }
+
+  player.pos = 0;
+  cpu.pos = 0;
+  player.el.classList.remove('winner');
+  cpu.el.classList.remove('winner');
+  player.el.style.transitionDuration = '0s';
+  cpu.el.style.transitionDuration = '0s';
+
+  logEl.innerHTML = '';
+  drawDie(1);
+  rollBtn.disabled = true;
+
+  requestAnimationFrame(() => {
+    placeToken(player);
+    placeToken(cpu);
+    player.el.style.transitionDuration = '.11s';
+    cpu.el.style.transitionDuration = '.11s';
+    updateUI();
+  });
+
+  addLog('🎲 بازی شروع شد! نوبت <span class="good">شما</span>ست.', 'hl');
+  gameLoop(myGen);
+}
+
+resetBtn.addEventListener('click', startGame);
+
+startBtn.addEventListener('click', () => {
+  rulesModal.classList.add('hidden');
+  startGame();
+});
+
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    placeToken(player);
+    placeToken(cpu);
+  }, 80);
+});
+
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => {
+    placeToken(player);
+    placeToken(cpu);
+  }, 200);
+});
+
+requestAnimationFrame(() => {
+  placeToken(player);
+  placeToken(cpu);
+});
+
+// بازی پس از کلیک روی «شروع بازی» آغاز می‌شود
+</script>
+</body>
+</html>
